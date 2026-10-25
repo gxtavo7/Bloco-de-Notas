@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloco de Notas Pessoal, grátis e privado</title>
+<meta name="description" content="Bloco de notas online gratuito e privado. Suas notas ficam salvas só no seu navegador, sem cadastro e sem login.">
+<style>
+:root{
+  --bg:#eef1f5; --panel:#ffffff; --text:#1b2433; --muted:#667085; --line:#dde2ea;
+  --accent:#2f5bd8; --accent-ink:#ffffff; --sel:#e6edff; --danger:#c43d3d; --rule:#e9edf3;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#141922; --panel:#1b222e; --text:#e8ecf3; --muted:#9aa4b5; --line:#2b3444;
+    --accent:#7d9bff; --accent-ink:#0f1626; --sel:#25304a; --danger:#ff8585; --rule:#242d3b;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:320px 1fr;height:100%;max-width:1200px;margin:0 auto}
+.side{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);background:var(--panel)}
+.side-head{padding:16px;border-bottom:1px solid var(--line);display:grid;gap:10px}
+.brand{margin:0;font:600 20px/1.2 Georgia,"Iowan Old Style",serif}
+.row{display:flex;gap:8px}
+.btn{border:1px solid var(--line);background:transparent;border-radius:8px;padding:8px 12px}
+.btn:hover{background:var(--sel)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;flex:1}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--danger)}
+.search{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 12px}
+.list{list-style:none;margin:0;padding:8px;overflow:auto;flex:1}
+.item{width:100%;text-align:left;border:0;background:transparent;border-radius:8px;padding:10px 12px;display:block}
+.item:hover{background:var(--bg)}
+.item[aria-current="true"]{background:var(--sel)}
+.item b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item span{display:block;color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{color:var(--muted);padding:16px;font-size:15px}
+.tools{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
+.tools .btn{font-size:14px;padding:6px 10px}
+
+.main{display:flex;flex-direction:column;min-height:0;min-width:0}
+.title{border:0;background:transparent;font:600 28px/1.25 Georgia,"Iowan Old Style",serif;padding:24px 32px 8px;width:100%}
+.title:focus{outline:none}
+.body{flex:1;border:0;resize:none;background:
+  repeating-linear-gradient(to bottom,transparent 0,transparent 31px,var(--rule) 31px,var(--rule) 32px);
+  background-attachment:local;line-height:32px;padding:0 32px 24px;width:100%;font-size:17px;max-width:80ch}
+.body:focus{outline:none}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 32px;border-top:1px solid var(--line);color:var(--muted);font-size:14px;background:var(--panel)}
+.placeholder{margin:auto;color:var(--muted);text-align:center;padding:24px;max-width:36ch}
+[hidden]{display:none!important}
+
+@media (max-width:760px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:100%}
+  .side{border-right:0;border-bottom:1px solid var(--line);max-height:42vh}
+  .title{padding:16px 16px 4px;font-size:24px}
+  .body{padding:0 16px 16px}
+  .foot{padding:8px 16px}
+}
+@media (prefers-reduced-motion:no-preference){.btn{transition:background .15s}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="side-head">
+      <h1 class="brand">Bloco de notas</h1>
+      <div class="row"><button class="btn primary" id="nova" type="button">Nova nota</button></div>
+      <input class="search" id="busca" type="search" placeholder="Buscar nas notas" aria-label="Buscar nas notas">
+    </div>
+    <ul class="list" id="lista"></ul>
+    <div class="tools">
+      <button class="btn" id="exportar" type="button">Baixar backup</button>
+      <button class="btn" id="importar" type="button">Restaurar backup</button>
+      <input type="file" id="arquivo" accept="application/json,.json" hidden>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="placeholder" id="vazio" hidden>Você ainda não tem notas. Clique em “Nova nota” para começar.</div>
+    <div class="main" id="editor" hidden style="flex:1">
+      <input class="title" id="titulo" type="text" placeholder="Título da nota" aria-label="Título da nota" maxlength="120">
+      <textarea class="body" id="texto" placeholder="Escreva aqui. Tudo é salvo automaticamente." aria-label="Texto da nota"></textarea>
+      <div class="foot">
+        <span id="status">Salvo neste navegador</span>
+        <button class="btn danger" id="apagar" type="button">Apagar nota</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  var KEY = "bloco-de-notas-v1";
+  var notas = [];
+  var atualId = null;
+  var timer = null;
+
+  var $ = function(id){ return document.getElementById(id); };
+  var lista = $("lista"), busca = $("busca"), titulo = $("titulo"), texto = $("texto");
+  var editor = $("editor"), vazio = $("vazio"), status = $("status");
+
+  function carregar(){
+    try { notas = JSON.parse(localStorage.getItem(KEY)) || []; }
+    catch(e){ notas = []; }
+    if(!Array.isArray(notas)) notas = [];
+  }
+  function gravar(){
+    try {
+      localStorage.setItem(KEY, JSON.stringify(notas));
+      status.textContent = "Salvo neste navegador";
+    } catch(e){
+      status.textContent = "Não foi possível salvar. Verifique se o navegador bloqueia o armazenamento.";
+    }
+  }
+  function novoId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function achar(id){ return notas.find(function(n){ return n.id === id; }); }
+
+  function desenharLista(){
+    var q = busca.value.trim().toLowerCase();
+    var filtradas = notas.filter(function(n){
+      return !q || (n.titulo + " " + n.texto).toLowerCase().indexOf(q) !== -1;
+    }).sort(function(a, b){ return b.atualizada - a.atualizada; });
+
+    lista.textContent = "";
+    if(!filtradas.length){
+      var li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = q ? "Nenhuma nota encontrada." : "Nenhuma nota ainda.";
+      lista.appendChild(li);
+      return;
+    }
+    filtradas.forEach(function(n){
+      var li = document.createElement("li");
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "item";
+      if(n.id === atualId) b.setAttribute("aria-current", "true");
+      var t = document.createElement("b");
+      t.textContent = n.titulo || "Sem título";
+      var s = document.createElement("span");
+      s.textContent = (n.texto || "Nota vazia").replace(/\s+/g, " ").slice(0, 80);
+      b.appendChild(t); b.appendChild(s);
+      b.addEventListener("click", function(){ abrir(n.id); });
+      li.appendChild(b); lista.appendChild(li);
+    });
+  }
+
+  function mostrar(){
+    var n = achar(atualId);
+    editor.hidden = !n;
+    vazio.hidden = !!n;
+    if(n){ titulo.value = n.titulo; texto.value = n.texto; }
+    desenharLista();
+  }
+  function abrir(id){ atualId = id; mostrar(); }
+
+  function criar(){
+    var n = { id: novoId(), titulo: "", texto: "", atualizada: Date.now() };
+    notas.push(n); atualId = n.id; gravar(); mostrar(); titulo.focus();
+  }
+
+  function editar(){
+    var n = achar(atualId); if(!n) return;
+    n.titulo = titulo.value; n.texto = texto.value; n.atualizada = Date.now();
+    status.textContent = "Salvando...";
+    clearTimeout(timer);
+    timer = setTimeout(function(){ gravar(); desenharLista(); }, 300);
+  }
+
+  function apagar(){
+    var n = achar(atualId); if(!n) return;
+    if(!confirm("Apagar esta nota? Não dá para desfazer.")) return;
+    notas = notas.filter(function(x){ return x.id !== atualId; });
+    atualId = null; gravar();
+    if(notas.length){ atualId = notas.slice().sort(function(a, b){ return b.atualizada - a.atualizada; })[0].id; }
+    mostrar();
+  }
+
+  function exportar(){
+    var blob = new Blob([JSON.stringify(notas, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "backup-notas.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  function importar(file){
+    var r = new FileReader();
+    r.onload = function(){
+      try {
+        var dados = JSON.parse(r.result);
+        if(!Array.isArray(dados)) throw new Error("formato");
+        var adicionadas = 0;
+        dados.forEach(function(d){
+          if(d && typeof d.texto === "string" && !achar(d.id)){
+            notas.push({
+              id: String(d.id || novoId()),
+              titulo: String(d.titulo || ""),
+              texto: d.texto,
+              atualizada: Number(d.atualizada) || Date.now()
+            });
+            adicionadas++;
+          }
+        });
+        gravar(); mostrar();
+        status.textContent = adicionadas + " nota(s) restaurada(s).";
+      } catch(e){
+        alert("Esse arquivo não parece ser um backup válido deste bloco de notas.");
+      }
+    };
+    r.readAsText(file);
+  }
+
+  $("nova").addEventListener("click", criar);
+  $("apagar").addEventListener("click", apagar);
+  $("exportar").addEventListener("click", exportar);
+  $("importar").addEventListener("click", function(){ $("arquivo").click(); });
+  $("arquivo").addEventListener("change", function(e){
+    if(e.target.files[0]) importar(e.target.files[0]);
+    e.target.value = "";
+  });
+  titulo.addEventListener("input", editar);
+  texto.addEventListener("input", editar);
+  busca.addEventListener("input", desenharLista);
+
+  carregar();
+  if(notas.length){ atualId = notas.slice().sort(function(a, b){ return b.atualizada - a.atualizada; })[0].id; }
+  mostrar();
+})();
+</script>
+</body>
+</html>
